@@ -1,0 +1,106 @@
+################################################################
+#  GM 5 PLUS (General Mobile, kod adi: shamrock) ROOT PAKETI
+#  Android 8.0.0 / OSR18O - Magisk ile root
+#  Hazirlayan notu: bizim yasadigimiz tuzaklar burada cozulu.
+################################################################
+
+== BU PAKET NE YAPAR ==
+Telefonun KENDI boot.img'ini cekip Magisk'le patch'ler (dm-verity
+KAPALI), geri yazar. Sonuc: ROOT + bootloop yok. Magisk app'ini
+de kurar. Cihazin kendi boot'unu kullandigi icin build farketmez.
+
+== ICINDEKILER ==
+  ROOTLA.bat                 -> CIFT TIKLA, otomatik root
+  auto_root.ps1              -> asil islem (bat bunu calistirir)
+  adb.exe / fastboot.exe     -> arac (DLL'lerle birlikte)
+  twrp-...-shamrock.img      -> gecici recovery (flashlanmaz)
+  Magisk-v30.7.apk           -> Magisk
+  magisk_patch\              -> magiskboot + binaryler + script (32-bit/armeabi-v7a)
+  Gm5Driver\                 -> fastboot SURUCU paketi (asagiya bak)
+  OKU-BENI.txt               -> bu dosya
+
+================================================================
+ ADIM ADIM
+================================================================
+
+--- 0. YEDEK AL ---
+Bootloader acmak telefonu TAMAMEN SILER (fabrika sifirlamasi,
+guvenlik geregi, kacinilmaz). Fotograf/dosya/Google yedegini al.
+
+--- 1. GELISTIRICI AYARLARI ---
+Ayarlar > Telefon hakkinda > "Yapi numarasi"na 7 kez bas.
+Geliştirici secenekleri > "OEM kilidini ac" (OEM unlocking) +
+"USB hata ayiklama" (USB debugging) ACIK.
+
+--- 2. FASTBOOT SURUCUSU (cogu kisinin takildigi yer) ---
+GM 5 Plus bootloader'da USB kimligi VID_18D1 PID_D00D'dir ve
+Windows'un/Google'in hazir surucusunde KAYITLI DEGILDIR; bu
+yuzden "fastboot devices" BOS doner.
+COZUM: Gm5Driver\Install.ps1'e sag tikla > "PowerShell ile
+calistir" (yonetici Evet). Imzali surucuyu kurar. Detay:
+Gm5Driver\OKU-README.txt.
+Test:  fastboot.exe devices   ->  seri numarasi gorunmeli.
+
+--- 3. BOOTLOADER AC ---
+  adb.exe reboot bootloader
+  fastboot.exe flashing unlock        (olmazsa: fastboot.exe oem unlock)
+Telefonda Ses tuslariyla "Yes/Unlock" sec, Power ile onayla.
+Telefon silinir, yeniden baslar. Kurulumu tamamla (veya gec).
+
+--- 4. OTOMATIK ROOT ---
+Telefon Android'de + USB takili + USB debugging onayli iken:
+  ROOTLA.bat'a CIFT TIKLA.
+Script: Magisk kurar > bootloader > TWRP'yi gecici acar >
+boot.img'i ceker > Magisk patch (verity kapali) > geri yazar >
+sisteme doner > "ROOT TAMAM" der.
+
+--- 5. KULLANIM (root'lu htop vs.) ---
+Termux:  pkg install tsu  &&  sudo htop
+Ilk sudo'da Magisk ekranda "izin ver?" sorar -> Grant.
+
+================================================================
+ BIZIM YAPTIGIMIZ HATALAR / TUZAKLAR (sen yapma)
+================================================================
+
+1) TWRP'yi "General Mobile" diye aramak: twrp.me cihazi KOD ADI
+   "shamrock" altinda listeler. Dogru dosya: shamrock TWRP.
+
+2) Fastboot surucusu: Zadig ile generic WinUSB kurmak TEK BASINA
+   yetmez - adb/fastboot Android'e ozel arayuz GUID'ini arar,
+   Zadig farkli GUID koyar, "fastboot devices" yine bos kalir.
+   Bu paketteki Gm5Driver dogru GUID'li imzali surucuyu kurar.
+
+3) EN BUYUK TUZAK - dm-verity bootloop:
+   Bootloader'i acip custom recovery'ye (TWRP/OrangeFox) girince
+   dm-verity tetiklenir; sonra sistem "GM logosu -> fastboot"
+   seklinde acilmaz. ORIJINAL boot'u geri yazmak COZMEZ.
+   Cozum = verity KAPALI bir boot (Magisk patch zaten kapatir).
+   Bu yuzden ROOTLA.bat once recovery'den patch'leyip flashlar,
+   sistemi ASLA yamasiz boot etmez. Sirayi bozma.
+
+4) Bootloader acmadan flashlamaya calismak: once unlock sart.
+
+5) ROOT SONRASI OTA GUNCELLEME ALMA: stok boot'u geri yukler,
+   root gider ve muhtemelen yine verity bootloop olur. Guncelleme
+   gelirse once arastir/yeniden patch'le.
+
+================================================================
+ KURTARMA (bir sey ters giderse)
+================================================================
+Script calisinca su yedekler olusur:
+  boot_stock_BUDEVICE.img      -> ORIJINAL boot (root'u geri al)
+  magisk_patched_BUDEVICE.img  -> root'lu boot
+Orijinali geri yuklemek / kurtarmak:
+  adb.exe reboot bootloader
+  fastboot.exe flash boot boot_stock_BUDEVICE.img
+  fastboot.exe reboot
+Telefon brick degildir: recovery + fastboot her zaman calisir.
+
+================================================================
+ SURUM NOTLARI
+================================================================
+- magisk_patch icindeki binaryler armeabi-v7a (32-bit) =
+  bu cihaza (armv7l) uygundur. 64-bit baska cihaz icin Magisk
+  APK'sindan arm64-v8a cikarilmali.
+- Magisk surumu: 30.7  | TWRP: 3.7.0_9-0-shamrock
+################################################################

@@ -1,0 +1,58 @@
+; GM 5 Plus (General Mobile, Android One) - fastboot/bootloader WinUSB surucusu
+; Cihaz: USB\VID_18D1&PID_D00D  (Google fastboot arayuzu)
+; Bu INF, winusb.sys'i baglar ve adb/fastboot'un aradigi Android arayuz GUID'ini ekler.
+;
+; KURULUM: Aygit Yoneticisi > sorunlu cihaz > Surucuyu guncelle > Bilgisayarima gozat
+;          > Listeden secsem > Disketim var (Have Disk) > bu .inf dosyasini sec.
+;
+; NOT (Windows 10/11 x64): bu INF imzasiz oldugundan, kurmadan once
+;   "Surucu imza zorlamasini" kapatmak gerekir:
+;   Ayarlar > Sistem > Kurtarma > Gelismis baslatma > Simdi yeniden baslat
+;   > Sorun giderme > Gelismis secenekler > Baslangic Ayarlari > Yeniden baslat > F7
+; Imza derdi istemiyorsan onun yerine Fix-Gm5Fastboot.ps1 (Zadig + GUID) yontemini kullan.
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = AndroidUsbDeviceClass
+ClassGuid   = {3F966BD9-FA04-4ec5-991C-D326973B5128}
+Provider    = %ProviderName%
+DriverVer   = 06/20/2026,1.0.0.0
+CatalogFile = gm5_winusb.cat
+
+[ClassInstall32]
+AddReg = AndroidWinUsbClassReg
+
+[AndroidWinUsbClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-1
+
+[Manufacturer]
+%ProviderName% = Google, NTx86, NTamd64, NTarm64
+
+[Google.NTx86]
+%DeviceName% = USB_Install, USB\VID_18D1&PID_D00D
+
+[Google.NTamd64]
+%DeviceName% = USB_Install, USB\VID_18D1&PID_D00D
+
+[Google.NTarm64]
+%DeviceName% = USB_Install, USB\VID_18D1&PID_D00D
+
+[USB_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[USB_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[USB_Install.HW]
+AddReg = Dev_AddReg
+
+[Dev_AddReg]
+HKR,,DeviceInterfaceGUIDs,0x10000,"{F72FE0D4-CBCB-407d-8814-9ED673D0DD6B}"
+
+[Strings]
+ProviderName = "GM5 Community"
+ClassName    = "Android Device"
+DeviceName   = "Android Bootloader Interface (GM5 Plus)"
