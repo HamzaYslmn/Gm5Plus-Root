@@ -3,14 +3,12 @@
 The app runs ON-DEMAND: started on the first viewer, force-stopped ~IDLE_STOP s after the last one
 leaves (zero idle power). Four GET endpoints:
 
-  /api/video/cameras           -> [{"id","facing","sizes":[{"w","h"},...]}, ...]  (per-camera properties)
-  /api/video/controls?backend= -> [{"key","label","type","value",values|min/max/step}, ...]  (per-API supported controls)
-  /api/video/stream            -> hardware H.264 stream (browser plays it via jMuxer)
+  /api/video/cameras           -> [{"id","facing","sizes":[{"w","h"},...]}, ...]  (camera list)
+  /api/video/snapshot?camera=  -> one full-resolution JPEG into RAM (rear=video snapshot, front=switch)
+  /api/video/stream            -> hardware H.264 1920x1080 stream (browser plays it via jMuxer)
   /api/video/status            -> {"up": bool, "viewers": int, "flash_max": int}
   /api/video/control?<k>=<v>   -> forward a control to the app. keys:
-        torch=on|off  focus=1  camera=<id>  backend=camera1-gl|camera2-gl|camerax-gl|camerax-analysis
-        size=WxH (from a camera's sizes list)  resolution=480|720|1080  zoom=1..8
-        exposure=<ev index>  fps=1..60 (cap; lower = brighter)  iso=0(auto)|>0  (manual exposure, native backends)
+        torch=on|off|toggle  focus=1  camera=<id>|front|back  exposure=<ev>  zoom=<ratio>
         flash=0..flash_max  (LED torch brightness; routed via app HAL while streaming, sysfs when idle)
 """
 import asyncio, subprocess, time
@@ -27,7 +25,6 @@ LED_MAX = f"{LED}/led:torch_0/max_brightness"
 LED_T0 = f"{LED}/led:torch_0/brightness"
 LED_T1 = f"{LED}/led:torch_1/brightness"
 LED_SW = f"{LED}/led:switch/brightness"
-SIZE_CAP = 4096                       # generous size passthrough cap for the termux fallback
 
 router = APIRouter()
 _V = {"viewers": 0, "last": 0.0, "lock": asyncio.Lock(), "reaper": None}
@@ -89,29 +86,35 @@ async def _app_get(path):
 
 @router.get("/video/cameras")
 async def cameras():
-    # per-camera properties incl. each camera's own supported sizes; fall back to termux-camera-info.
-    # The app already caps sizes to the encoder max, so just pass them through.
+    # The app reports each camera's real video sizes (already capped to its HW encoder). When the app
+    # is down we only know id/facing from termux; sizes fill in once it's up (the dashboard refetches).
     code, data = await _app_get("/cameras")
     if code == 200 and data:
         return data
     import json
     try:
         out = subprocess.run(["termux-camera-info"], capture_output=True, text=True, timeout=8).stdout
-        result = []
-        for c in json.loads(out):
-            sizes = [{"w": s["width"], "h": s["height"]} for s in c.get("jpeg_output_sizes", [])
-                     if s["width"] <= SIZE_CAP and s["height"] <= SIZE_CAP]
-            result.append({"id": str(c.get("id")), "facing": c.get("facing", "?"), "sizes": sizes})
-        return result
+        return [{"id": str(c.get("id")), "facing": c.get("facing", "?"), "sizes": []} for c in json.loads(out)]
     except Exception:
         return []
 
-@router.get("/video/controls")
-async def controls(request: Request):
-    # Per-API supported image controls for the current camera (the app reports what each backend can do).
-    backend = request.query_params.get("backend", "camera1-gl")
-    code, data = await _app_get(f"/controls?backend={backend}")
-    return data if code == 200 and data is not None else []
+@router.get("/video/snapshot")
+async def snapshot(request: Request):
+    # One JPEG captured into RAM by the app. ?camera=<id>. Poll alternately for a dual-camera view
+    # (single HAL can't hold two live streams). _touch keeps the app alive between polls.
+    cam = request.query_params.get("camera", "")
+    async with _V["lock"]:
+        if not await _ensure_app():
+            return Response("camera app failed to start", status_code=503)
+    _touch()
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=10) as c:
+            r = await c.get(f"{BASE}/snapshot?camera={cam}")
+            if r.status_code == 200:
+                return Response(r.content, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+            return Response("snapshot failed", status_code=502)
+    except Exception:
+        return Response("snapshot error", status_code=502)
 
 @router.get("/video/stream")
 async def stream():

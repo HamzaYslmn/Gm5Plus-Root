@@ -137,11 +137,10 @@
   <!-- ===================== CAMERAS ===================== -->
   <section id="t-cams" class="hidden space-y-5">
 
-    <!-- live video -->
+    <!-- live video (Camera1, 1920×1080 H.264) -->
     <div class="card overflow-hidden">
       <div class="relative bg-black">
         <video id="lv-video" class="w-full block" style="max-height:74vh;min-height:160px" autoplay muted playsinline></video>
-        <!-- top overlay: status + meta -->
         <div class="absolute top-0 inset-x-0 flex items-center justify-between p-3 pointer-events-none"
              style="background:linear-gradient(180deg,rgba(0,0,0,.55),transparent)">
           <span class="flex items-center gap-2 text-xs font-mono px-2 py-1 rounded-lg" style="background:rgba(0,0,0,.45)">
@@ -150,57 +149,67 @@
           </span>
           <span id="lv-spin" class="hidden text-xs px-2 py-1 rounded-lg font-mono" style="background:rgba(0,0,0,.55);color:#ffd479">starting camera…</span>
         </div>
-        <!-- center play button when stopped -->
-        <button id="lv-play" onclick="toggleVideo()"
-          class="absolute inset-0 grid place-items-center group">
+        <button id="lv-play" onclick="toggleVideo()" class="absolute inset-0 grid place-items-center group">
           <span class="w-16 h-16 rounded-full grid place-items-center text-2xl text-white shadow-xl transition group-hover:scale-110"
                 style="background:linear-gradient(135deg,var(--accent2),var(--accent))">▶</span>
         </button>
       </div>
-      <!-- action bar under the video -->
       <div class="flex items-center gap-2 p-3 flex-wrap" style="border-top:1px solid var(--border)">
         <button id="lv-btn" onclick="toggleVideo()" class="btn font-medium">▶ Start</button>
         <button onclick="vctl('focus=1')" class="btn" title="one-shot autofocus">🎯 Focus</button>
+        <label class="text-[11px]" style="color:#666">Camera</label>
+        <select id="lv-cam" onchange="setCam()" class="btn text-sm"><option value="">(loading…)</option></select>
+        <label class="text-[11px]" style="color:#666">Res</label>
+        <select id="lv-res" onchange="setRes()" class="btn text-sm"><option value="">(loading…)</option></select>
+        <label class="text-[11px]" style="color:#666">API</label>
+        <select id="lv-api" onchange="setApi()" class="btn text-sm" title="Auto picks Camera1 on legacy phones for true 1080p">
+          <option value="auto" selected>Auto</option>
+          <option value="camerax">CameraX</option>
+          <option value="camera1">Camera1 · 1080p</option>
+        </select>
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background:var(--bg3)">
           <span class="text-sm">🔦</span>
-          <input id="lv-flash" type="range" min="0" max="255" value="0" class="w-28" title="flash brightness"
+          <input id="lv-flash" type="range" min="0" max="255" value="0" class="w-24" title="flash brightness"
                  oninput="$('#lv-flash-val').textContent=this.value" onchange="vctl('flash='+this.value)">
           <span id="lv-flash-val" class="text-[11px] font-mono w-6 text-right" style="color:var(--muted)">0</span>
         </div>
-        <span class="ml-auto text-[11px]" style="color:#666">HW H.264 · auto-stops ~8s after you leave</span>
+        <span class="ml-auto text-[11px]" style="color:#666">CameraX · HW H.264 · auto-stops ~8s idle</span>
       </div>
     </div>
 
-    <!-- camera / api / resolution selectors -->
-    <div class="grid sm:grid-cols-3 gap-3">
-      <label class="card p-3 block">
-        <span class="dh">Camera</span>
-        <select id="lv-cam" onchange="setCam()" class="btn w-full mt-1.5"><option value="">(loading…)</option></select>
-      </label>
-      <label class="card p-3 block">
-        <span class="dh">Capture API</span>
-        <select id="lv-backend" onchange="setBackend()" class="btn w-full mt-1.5">
-          <option value="camera1-gl" selected>Camera1 · GL (best 1080p)</option>
-          <option value="camera2-gl">Camera2 · GL</option>
-          <option value="camerax-gl">CameraX · GL</option>
-          <option value="camerax-analysis">CameraX · Analysis</option>
-        </select>
-      </label>
-      <label class="card p-3 block">
-        <span class="dh">Resolution</span>
-        <select id="lv-res" onchange="setRes()" class="btn w-full mt-1.5"><option value="">(loading…)</option></select>
-      </label>
-    </div>
-
-    <!-- dynamic per-API image controls -->
+    <!-- full-resolution photos -->
     <div class="card p-4">
-      <div class="flex items-center justify-between mb-1">
-        <h3 class="sec-title">Image controls</h3>
-        <span id="lv-api" class="text-[11px] font-mono px-2 py-0.5 rounded" style="background:var(--bg3);color:var(--accent)">—</span>
+      <h3 class="sec-title mb-1">Photos <span class="normal-case text-[11px]" style="color:#666">· full resolution</span></h3>
+      <p class="text-[11px] mb-3" style="color:#666">Rear photo captures while the stream keeps running. Front photo briefly switches the camera (the live view blips), then resumes — one camera HAL.</p>
+      <div class="flex gap-2 flex-wrap">
+        <button onclick="grabPhoto('back')" class="btn">📷 Rear photo</button>
+        <button onclick="grabPhoto('front')" class="btn">📷 Front photo</button>
+        <span id="grab-meta" class="text-[11px] self-center font-mono" style="color:#666"></span>
       </div>
-      <p class="text-[11px] mb-3" style="color:#666">Supported features for the selected API. Switch API to see what each one exposes.</p>
-      <div id="lv-ctl" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <p class="text-xs" style="color:var(--muted)">Start the stream to load controls.</p>
+      <div id="grab-box" class="hidden mt-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="dh" id="grab-title">snapshot</span>
+          <span class="flex gap-3 text-xs"><a id="grab-dl" download="snapshot.jpg" href="#" style="color:var(--accent)">download</a>
+            <button onclick="$('#grab-box').classList.add('hidden')" style="color:#666">close</button></span>
+        </div>
+        <img id="grab-img" class="w-full rounded-lg bg-black" style="max-height:50vh;object-fit:contain" alt="photo">
+      </div>
+    </div>
+
+    <!-- controls -->
+    <div class="card p-4">
+      <h3 class="sec-title mb-3">Controls</h3>
+      <div class="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+        <div>
+          <div class="flex justify-between text-[11px]" style="color:#666"><span>Exposure (EV)</span><span id="lv-exp-val">0</span></div>
+          <input id="lv-exp" type="range" min="-12" max="12" step="1" value="0" class="w-full"
+                 oninput="$('#lv-exp-val').textContent=(this.value>0?'+':'')+this.value" onchange="vctl('exposure='+this.value)">
+        </div>
+        <div>
+          <div class="flex justify-between text-[11px]" style="color:#666"><span>Zoom</span><span id="lv-zoom-val">1.0×</span></div>
+          <input id="lv-zoom" type="range" min="1" max="8" step="0.1" value="1" class="w-full"
+                 oninput="$('#lv-zoom-val').textContent=(+this.value).toFixed(1)+'×'" onchange="vctl('zoom='+this.value)">
+        </div>
       </div>
     </div>
 
@@ -318,34 +327,23 @@ async function tickSensors(){
 }
 
 // =====================================================================
-//  Live video controller (android-ip-camera proxy, on-demand H.264)
-//  Controls are enumerated PER API by the app — dashboard renders them dynamically.
+//  Live video (Camera1 1920×1080 H.264 via jMuxer) + full-resolution photos.
 // =====================================================================
-const V = {
-  on:false, jmuxer:null, abort:null, switching:false,
-  cameras:[],          // cached /api/video/cameras: [{id,facing,sizes:[{w,h}]}]
-  loaded:false,        // cameras fetched once
-};
+const V = { on:false, jmuxer:null, abort:null, cameras:[], loaded:false };
 
-// control passthrough
 async function vctl(p){ try{ await fetch("/api/video/control?"+p); }catch{} }
 
-const apiLabel = b => b.startsWith("camera1")?"Camera1 API":b.startsWith("camera2")?"Camera2 API":"CameraX";
-function ctlFmt(key,v){ return key==="exposure"?((+v>0?"+":"")+v):key==="zoom"?(v+"×"):v; }
-
-// live WxH·fps readout via requestVideoFrameCallback
+// live WxH·fps readout
 V.meta = function(){
   const v=$("#lv-video"), m=$("#lv-meta"); if(!v||!m) return;
   let frames=0, t0=performance.now();
   const tick=()=>{
-    if(!V.on) return;
-    frames++;
+    if(!V.on) return; frames++;
     const dt=performance.now()-t0;
     if(dt>=1000){ m.textContent=`${v.videoWidth||"?"}×${v.videoHeight||"?"} · ${Math.round(frames*1000/dt)} fps`; frames=0; t0=performance.now(); }
     if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(tick);
   };
-  if(v.requestVideoFrameCallback){ v.requestVideoFrameCallback(tick); }
-  else { const iv=setInterval(()=>{ if(!V.on){clearInterval(iv);return;} if(v.videoWidth) m.textContent=`${v.videoWidth}×${v.videoHeight}`; },1000); }
+  if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(tick);
 };
 
 V.stop = function(){
@@ -361,19 +359,15 @@ V.stop = function(){
 };
 
 V.start = async function(){
-  if(V.on) return;
-  V.on=true;
+  if(V.on) return; V.on=true;
   $("#lv-btn").textContent="⏸ Stop"; $("#lv-btn").classList.add("active");
   $("#lv-play").classList.add("hidden");
   $("#lv-spin").classList.remove("hidden");
   $("#lv-dot").style.background=CSS('--ok');
-  // apply selected backend + size before the stream connects
-  await vctl("backend="+$("#lv-backend").value);
-  const sz=$("#lv-res").value; if(sz) await vctl("size="+sz);
   V.jmuxer=new JMuxer({ node:"lv-video", mode:"video", flushingTime:0, fps:25, debug:false,
     onReady:()=>$("#lv-spin").classList.add("hidden") });
   V.meta();
-  setTimeout(()=>V.loadControls(), 1800);   // app + camera up now → enumerate this API's controls
+  setTimeout(()=>V.refreshSizes(), 1800);   // app up now → real resolution list
   V.abort=new AbortController();
   try{
     const resp=await fetch("/api/video/stream?t="+Date.now(),{signal:V.abort.signal});
@@ -386,79 +380,73 @@ V.start = async function(){
     }
   }catch(e){ /* aborted or stream ended */ }
 };
-
 function toggleVideo(){ V.on ? V.stop() : V.start(); }
 
-V.restart = function(){ if(V.on){ V.stop(); setTimeout(()=>V.start(), 1000); } };
-
-// debounced switch (~1.5s) with "switching…" feedback
-V.debounce = function(fn){
-  if(V.switching) return;
-  V.switching=true;
+// Switch the live camera. Soft resync: keep the HTTP stream open; the server rebuilds the encoder
+// and resends a keyframe, so the new camera picks up without a reconnect. Debounced to the latest pick.
+const softReset=()=>{ if(V.on){ try{V.jmuxer?.destroy();}catch{} V.jmuxer=new JMuxer({node:"lv-video",mode:"video",flushingTime:0,fps:25,debug:false}); } };
+let camSwitchT=null;
+function setCam(){
+  clearTimeout(camSwitchT);
   const m=$("#lv-meta"); if(m&&V.on) m.textContent="switching…";
-  Promise.resolve(fn()).finally(()=>setTimeout(()=>{V.switching=false;},1500));
-};
-// changing the API re-enumerates the supported controls (each API exposes a different set)
-function setBackend(){ V.debounce(async()=>{ await vctl("backend="+$("#lv-backend").value); V.restart(); V.loadControls(); setTimeout(()=>V.loadControls(),1700); }); }
-function setRes(){ V.debounce(async()=>{ const v=$("#lv-res").value; if(v) await vctl("size="+v); V.restart(); }); }
-function setCam(){ V.debounce(async()=>{ await vctl("camera="+$("#lv-cam").value); V.fillSizes(); V.restart(); setTimeout(()=>V.loadControls(),1700); }); }
-
-// populate Res from the SELECTED camera's own size list (no union, no stale list)
-V.fillSizes = function(){
+  camSwitchT=setTimeout(async()=>{ await vctl("camera="+$("#lv-cam").value); V.fillRes(); softReset(); }, 300);
+}
+function setRes(){
+  const v=$("#lv-res").value; if(!v) return;
+  const m=$("#lv-meta"); if(m&&V.on) m.textContent="switching…";
+  vctl("resolution="+v).then(softReset);
+}
+function setApi(){
+  const m=$("#lv-meta"); if(m&&V.on) m.textContent="switching…";
+  vctl("api="+$("#lv-api").value).then(softReset);
+  setTimeout(()=>V.refreshSizes(), 1600);
+}
+// resolution list for the selected camera (from /api/video/cameras sizes; needs the app up)
+V.fillRes=function(){
   const sel=$("#lv-res"); if(!sel) return;
-  const cam=V.cameras.find(c=>c.id===$("#lv-cam").value) || V.cameras[0];
+  const cam=V.cameras.find(c=>c.facing===$("#lv-cam").value) || V.cameras[0];
   const sizes=(cam&&cam.sizes)||[];
   if(sizes.length){
-    const def=sizes.filter(s=>s.h<=1080).sort((a,b)=>b.w*b.h-a.w*a.h)[0]
-            || sizes.slice().sort((a,b)=>b.w*b.h-a.w*a.h)[0];
+    const def=sizes.filter(s=>s.h<=1080).sort((a,b)=>b.w*b.h-a.w*a.h)[0] || sizes.slice().sort((a,b)=>b.w*b.h-a.w*a.h)[0];
     sel.innerHTML=sizes.map(s=>`<option value="${s.w}x${s.h}"${s===def?" selected":""}>${s.w}×${s.h}</option>`).join("");
-  } else sel.innerHTML=`<option value="">native</option>`;
+  } else sel.innerHTML=`<option value="">default</option>`;
+};
+// once the app is up (after Start) the size list is real; refetch and fill
+V.refreshSizes=async function(){
+  try{ const list=await (await fetch("/api/video/cameras")).json();
+    if(Array.isArray(list)&&list.some(c=>c.sizes&&c.sizes.length)){ V.cameras=list; V.fillRes(); }
+  }catch{}
 };
 
-// render one control (enum -> select, range -> slider) sent to the app on change
-function renderControl(c){
-  const send=`vctl('${c.key}='+this.value)`;
-  if(c.type==="enum"){
-    const opts=c.values.map(v=>`<option value="${v}"${v===c.value?" selected":""}>${v}</option>`).join("");
-    return `<div class="rounded-lg p-3" style="background:var(--bg3)">
-      <div class="dh mb-1.5">${c.label}</div>
-      <select class="btn w-full" onchange="${send}">${opts}</select></div>`;
-  }
-  return `<div class="rounded-lg p-3" style="background:var(--bg3)">
-    <div class="flex justify-between items-center mb-1.5"><span class="dh">${c.label}</span>
-      <span id="cv-${c.key}" class="text-xs font-mono" style="color:var(--accent)">${ctlFmt(c.key,c.value)}</span></div>
-    <input type="range" min="${c.min}" max="${c.max}" step="${c.step||1}" value="${c.value}" class="w-full"
-      oninput="$('#cv-${c.key}').textContent=ctlFmt('${c.key}',this.value)" onchange="${send}"></div>`;
+// Full-resolution photo. Rear = video snapshot (no stream interruption); front = brief camera switch.
+async function grabPhoto(facing){
+  $("#grab-meta").textContent="capturing "+facing+"…";
+  try{
+    const r=await fetch("/api/video/snapshot?camera="+encodeURIComponent(facing)+"&t="+Date.now());
+    if(!r.ok) throw new Error(r.status);
+    const blob=await r.blob();
+    const img=$("#grab-img"); if(img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+    const u=URL.createObjectURL(blob); img.src=u; img.dataset.url=u;
+    $("#grab-dl").href=u; $("#grab-dl").download=facing+"-photo.jpg";
+    $("#grab-title").textContent=facing+" camera";
+    $("#grab-box").classList.remove("hidden");
+    $("#grab-meta").textContent=Math.round(blob.size/1024)+" KB";
+  }catch(e){ $("#grab-meta").textContent="failed ("+e.message+")"; }
 }
 
-// fetch + render the active API's supported controls
-V.loadControls = async function(){
-  const box=$("#lv-ctl"), api=$("#lv-backend").value;
-  $("#lv-api").textContent=apiLabel(api);
-  try{
-    const list=await (await fetch("/api/video/controls?backend="+encodeURIComponent(api))).json();
-    if(Array.isArray(list)&&list.length) box.innerHTML=list.map(renderControl).join("");
-    else box.innerHTML=`<p class="text-xs" style="color:var(--muted)">No controls reported${V.on?"":" — start the stream to load them"}.</p>`;
-  }catch{ box.innerHTML=`<p class="text-xs" style="color:var(--bad)">controls unavailable</p>`; }
-};
-
-// fetch cameras once (cached) + read flash_max from /api/video/status
+// fetch camera list + flash max once
 V.init = async function(){
-  if(V.loaded) return;
-  V.loaded=true;
-  try{ const st=await (await fetch("/api/video/status")).json();
-    const fm=Number(st.flash_max)||255; $("#lv-flash").max=fm;
-  }catch{ $("#lv-flash").max=255; }
+  if(V.loaded) return; V.loaded=true;
+  try{ const st=await (await fetch("/api/video/status")).json(); $("#lv-flash").max=Number(st.flash_max)||255; }catch{ $("#lv-flash").max=255; }
   const sel=$("#lv-cam");
   try{
     const list=await (await fetch("/api/video/cameras")).json();
     V.cameras=Array.isArray(list)?list:[];
-    if(V.cameras.length){
-      sel.innerHTML=V.cameras.map(c=>`<option value="${c.id}">cam ${c.id} · ${c.facing||"?"}</option>`).join("");
-      V.fillSizes();
-    } else { sel.innerHTML=`<option value="">no cameras</option>`; $("#lv-res").innerHTML=`<option value="">native</option>`; }
+    sel.innerHTML = V.cameras.length
+      ? V.cameras.map(c=>`<option value="${c.facing||c.id}">${c.facing||("cam "+c.id)}</option>`).join("")
+      : `<option value="">no cameras</option>`;
+    V.fillRes();
   }catch{ V.loaded=false; sel.innerHTML=`<option value="">unavailable</option>`; }
-  V.loadControls();   // attempt immediately (Camera2 works without streaming; others fill in on start)
 };
 
 // =====================================================================
