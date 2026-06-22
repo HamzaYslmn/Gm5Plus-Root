@@ -213,11 +213,8 @@
 
         <div class="card p-4 space-y-3">
           <h3 class="sec-title">Capture <span class="normal-case text-[11px]" style="color:#666">· full resolution</span></h3>
-          <p class="text-[11px]" style="color:#666">Rear captures while the stream runs. Front briefly switches the camera (the live view blips), then resumes — one camera HAL.</p>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="grabPhoto('back')" class="btn">📷 Rear</button>
-            <button onclick="grabPhoto('front')" class="btn">📷 Front</button>
-          </div>
+          <p class="text-[11px]" style="color:#666">The streaming camera captures without interrupting the live view; any other camera briefly switches (the live view blips), then resumes — single camera HAL. Works even with the stream stopped.</p>
+          <div id="grab-btns" class="grid grid-cols-2 gap-2"><span class="text-[11px] self-center" style="color:#666">loading…</span></div>
           <span id="grab-meta" class="block text-[11px] font-mono" style="color:#666"></span>
         </div>
 
@@ -415,10 +412,16 @@ function setApi(){
   setTimeout(()=>V.refreshSizes(), 1800);
 }
 // resolution list for the selected camera (from /api/video/cameras sizes; needs the app up)
+V.fillGrabButtons=function(){
+  const box=$("#grab-btns"); if(!box) return;
+  box.innerHTML = V.cameras.length
+    ? V.cameras.map(c=>`<button onclick="grabPhoto('${c.id}')" class="btn">📷 Camera ${c.id} · ${c.facing}</button>`).join("")
+    : `<span class="text-[11px] self-center" style="color:#666">no cameras</span>`;
+};
 V.fillRes=function(){
   const sel=$("#lv-res"); if(!sel) return;
   const keep=sel.value;
-  const cam=V.cameras.find(c=>c.facing===$("#lv-cam").value) || V.cameras[0];
+  const cam=V.cameras.find(c=>c.id===$("#lv-cam").value) || V.cameras[0];
   const sizes=(cam&&cam.sizes)||[];
   sel.innerHTML=`<option value="auto">Auto (max)</option>`
     + sizes.map(s=>`<option value="${s.w}x${s.h}">${s.w}×${s.h}</option>`).join("");
@@ -427,21 +430,23 @@ V.fillRes=function(){
 // once the app is up (after Start) the size list is real; refetch and fill
 V.refreshSizes=async function(){
   try{ const list=await (await fetch("/api/video/cameras")).json();
-    if(Array.isArray(list)&&list.some(c=>c.sizes&&c.sizes.length)){ V.cameras=list; V.fillRes(); }
+    if(Array.isArray(list)&&list.length){ V.cameras=list; V.fillRes(); V.fillGrabButtons(); }
   }catch{}
 };
 
-// Full-resolution photo. Rear = video snapshot (no stream interruption); front = brief camera switch.
-async function grabPhoto(facing){
-  $("#grab-meta").textContent="capturing "+facing+"…";
+// Full-resolution photo by Camera2 id. The streaming camera captures concurrently; any other switches.
+async function grabPhoto(camId){
+  const c=V.cameras.find(x=>x.id===camId);
+  const label=c?`Camera ${c.id} · ${c.facing}`:("camera "+camId);
+  $("#grab-meta").textContent="capturing "+label+"…";
   try{
-    const r=await fetch("/api/video/snapshot?camera="+encodeURIComponent(facing)+"&t="+Date.now());
+    const r=await fetch("/api/video/snapshot?camera="+encodeURIComponent(camId)+"&t="+Date.now());
     if(!r.ok) throw new Error(r.status);
     const blob=await r.blob();
     const img=$("#grab-img"); if(img.dataset.url) URL.revokeObjectURL(img.dataset.url);
     const u=URL.createObjectURL(blob); img.src=u; img.dataset.url=u;
-    $("#grab-dl").href=u; $("#grab-dl").download=facing+"-photo.jpg";
-    $("#grab-title").textContent=facing+" camera";
+    $("#grab-dl").href=u; $("#grab-dl").download="camera"+camId+".jpg";
+    $("#grab-title").textContent=label;
     $("#grab-box").classList.remove("hidden");
     $("#grab-meta").textContent=Math.round(blob.size/1024)+" KB";
   }catch(e){ $("#grab-meta").textContent="failed ("+e.message+")"; }
@@ -456,9 +461,9 @@ V.init = async function(){
     const list=await (await fetch("/api/video/cameras")).json();
     V.cameras=Array.isArray(list)?list:[];
     sel.innerHTML = V.cameras.length
-      ? V.cameras.map(c=>`<option value="${c.facing||c.id}">${c.facing||("cam "+c.id)}</option>`).join("")
+      ? V.cameras.map(c=>`<option value="${c.id}">Camera ${c.id} · ${c.facing}</option>`).join("")
       : `<option value="">no cameras</option>`;
-    V.fillRes();
+    V.fillRes(); V.fillGrabButtons();
   }catch{ V.loaded=false; sel.innerHTML=`<option value="">unavailable</option>`; }
 };
 

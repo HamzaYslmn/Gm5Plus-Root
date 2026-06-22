@@ -19,7 +19,9 @@ from fastapi.responses import StreamingResponse, Response
 # --- config ---
 PKG = "com.github.digitallyrefined.androidipcamera"
 BASE = "https://127.0.0.1:4444"
-IDLE_STOP = 8.0                       # seconds after last viewer before force-stopping the app
+IDLE_STOP = 20.0                      # grace before force-stopping the app (camera is already released
+                                      # between shots, so this just keeps the lightweight process warm
+                                      # → back-to-back photos skip the ~10s cold relaunch)
 LED = "/sys/class/leds"              # torch LED sysfs root
 LED_MAX = f"{LED}/led:torch_0/max_brightness"
 LED_T0 = f"{LED}/led:torch_0/brightness"
