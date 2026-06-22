@@ -135,84 +135,95 @@
   </section>
 
   <!-- ===================== CAMERAS ===================== -->
-  <section id="t-cams" class="hidden space-y-5">
+  <section id="t-cams" class="hidden">
+    <div class="grid lg:grid-cols-3 gap-5 items-start">
 
-    <!-- live video (Camera1, 1920×1080 H.264) -->
-    <div class="card overflow-hidden">
-      <div class="relative bg-black">
-        <video id="lv-video" class="w-full block" style="max-height:74vh;min-height:160px" autoplay muted playsinline></video>
-        <div class="absolute top-0 inset-x-0 flex items-center justify-between p-3 pointer-events-none"
-             style="background:linear-gradient(180deg,rgba(0,0,0,.55),transparent)">
-          <span class="flex items-center gap-2 text-xs font-mono px-2 py-1 rounded-lg" style="background:rgba(0,0,0,.45)">
-            <span id="lv-dot" class="w-2 h-2 rounded-full" style="background:#666"></span>
-            <span id="lv-meta" style="color:#cfcfcf">idle</span>
-          </span>
-          <span id="lv-spin" class="hidden text-xs px-2 py-1 rounded-lg font-mono" style="background:rgba(0,0,0,.55);color:#ffd479">starting camera…</span>
+      <!-- LEFT: viewfinder + captured photo -->
+      <div class="lg:col-span-2 space-y-5">
+        <div class="card overflow-hidden">
+          <div class="relative bg-black">
+            <video id="lv-video" class="w-full block" style="max-height:68vh;min-height:160px" autoplay muted playsinline></video>
+            <div class="absolute top-0 inset-x-0 flex items-center justify-between p-3 pointer-events-none"
+                 style="background:linear-gradient(180deg,rgba(0,0,0,.55),transparent)">
+              <span class="flex items-center gap-2 text-xs font-mono px-2 py-1 rounded-lg" style="background:rgba(0,0,0,.45)">
+                <span id="lv-dot" class="w-2 h-2 rounded-full" style="background:#666"></span>
+                <span id="lv-meta" style="color:#cfcfcf">idle</span>
+              </span>
+              <span id="lv-spin" class="hidden text-xs px-2 py-1 rounded-lg font-mono" style="background:rgba(0,0,0,.55);color:#ffd479">starting camera…</span>
+            </div>
+            <button id="lv-play" onclick="toggleVideo()" class="absolute inset-0 grid place-items-center group">
+              <span class="w-16 h-16 rounded-full grid place-items-center text-2xl text-white shadow-xl transition group-hover:scale-110"
+                    style="background:linear-gradient(135deg,var(--accent2),var(--accent))">▶</span>
+            </button>
+          </div>
+          <div class="flex items-center gap-2 p-3" style="border-top:1px solid var(--border)">
+            <button id="lv-btn" onclick="toggleVideo()" class="btn font-medium">▶ Start</button>
+            <button onclick="vctl('focus=1')" class="btn" title="one-shot autofocus">🎯 Focus</button>
+            <span class="ml-auto text-[11px]" style="color:#666">HW H.264 · auto-stops ~8s idle</span>
+          </div>
         </div>
-        <button id="lv-play" onclick="toggleVideo()" class="absolute inset-0 grid place-items-center group">
-          <span class="w-16 h-16 rounded-full grid place-items-center text-2xl text-white shadow-xl transition group-hover:scale-110"
-                style="background:linear-gradient(135deg,var(--accent2),var(--accent))">▶</span>
-        </button>
-      </div>
-      <div class="flex items-center gap-2 p-3 flex-wrap" style="border-top:1px solid var(--border)">
-        <button id="lv-btn" onclick="toggleVideo()" class="btn font-medium">▶ Start</button>
-        <button onclick="vctl('focus=1')" class="btn" title="one-shot autofocus">🎯 Focus</button>
-        <label class="text-[11px]" style="color:#666">Camera</label>
-        <select id="lv-cam" onchange="setCam()" class="btn text-sm"><option value="">(loading…)</option></select>
-        <label class="text-[11px]" style="color:#666">Res</label>
-        <select id="lv-res" onchange="setRes()" class="btn text-sm"><option value="">(loading…)</option></select>
-        <label class="text-[11px]" style="color:#666">API</label>
-        <select id="lv-api" onchange="setApi()" class="btn text-sm" title="Auto picks Camera1 on legacy phones for true 1080p">
-          <option value="auto" selected>Auto</option>
-          <option value="camerax">CameraX</option>
-          <option value="camera1">Camera1 · 1080p</option>
-        </select>
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg" style="background:var(--bg3)">
-          <span class="text-sm">🔦</span>
-          <input id="lv-flash" type="range" min="0" max="255" value="0" class="w-24" title="flash brightness"
-                 oninput="$('#lv-flash-val').textContent=this.value" onchange="vctl('flash='+this.value)">
-          <span id="lv-flash-val" class="text-[11px] font-mono w-6 text-right" style="color:var(--muted)">0</span>
+
+        <!-- captured photo (appears here after a snapshot) -->
+        <div id="grab-box" class="card p-4 hidden">
+          <div class="flex items-center justify-between mb-2">
+            <span class="dh" id="grab-title">snapshot</span>
+            <span class="flex gap-3 text-xs"><a id="grab-dl" download="snapshot.jpg" href="#" style="color:var(--accent)">download</a>
+              <button onclick="$('#grab-box').classList.add('hidden')" style="color:#666">close</button></span>
+          </div>
+          <img id="grab-img" class="w-full rounded-lg bg-black" style="max-height:60vh;object-fit:contain" alt="photo">
         </div>
-        <span class="ml-auto text-[11px]" style="color:#666">CameraX · HW H.264 · auto-stops ~8s idle</span>
       </div>
+
+      <!-- RIGHT: control panel (stacks under the video on mobile) -->
+      <div class="space-y-5">
+
+        <div class="card p-4 space-y-3">
+          <h3 class="sec-title">Source</h3>
+          <label class="block"><span class="dh">Camera</span>
+            <select id="lv-cam" onchange="setCam()" class="btn w-full mt-1"><option value="">(loading…)</option></select></label>
+          <label class="block"><span class="dh">Resolution</span>
+            <select id="lv-res" onchange="setRes()" class="btn w-full mt-1"><option value="">(loading…)</option></select></label>
+          <label class="block"><span class="dh">API</span>
+            <select id="lv-api" onchange="setApi()" class="btn w-full mt-1" title="Auto picks Camera1 on legacy phones for true 1080p">
+              <option value="auto" selected>Auto</option>
+              <option value="camerax">CameraX</option>
+              <option value="camera1">Camera1 · 1080p</option>
+            </select></label>
+        </div>
+
+        <div class="card p-4 space-y-4">
+          <h3 class="sec-title">Image</h3>
+          <button onclick="vctl('focus=1')" class="btn w-full" title="one-shot autofocus">🎯 Autofocus</button>
+          <div>
+            <div class="flex justify-between dh"><span>Exposure (EV)</span><span id="lv-exp-val" style="color:var(--accent)">0</span></div>
+            <input id="lv-exp" type="range" min="-12" max="12" step="1" value="0" class="w-full mt-1"
+                   oninput="$('#lv-exp-val').textContent=(this.value>0?'+':'')+this.value" onchange="vctl('exposure='+this.value)">
+          </div>
+          <div>
+            <div class="flex justify-between dh"><span>Zoom</span><span id="lv-zoom-val" style="color:var(--accent)">1.0×</span></div>
+            <input id="lv-zoom" type="range" min="1" max="8" step="0.1" value="1" class="w-full mt-1"
+                   oninput="$('#lv-zoom-val').textContent=(+this.value).toFixed(1)+'×'" onchange="vctl('zoom='+this.value)">
+          </div>
+          <div>
+            <div class="flex justify-between dh"><span>🔦 Flash</span><span id="lv-flash-val" style="color:var(--accent)">0</span></div>
+            <input id="lv-flash" type="range" min="0" max="255" value="0" class="w-full mt-1" title="flash brightness"
+                   oninput="$('#lv-flash-val').textContent=this.value" onchange="vctl('flash='+this.value)">
+          </div>
+        </div>
+
+        <div class="card p-4 space-y-3">
+          <h3 class="sec-title">Capture <span class="normal-case text-[11px]" style="color:#666">· full resolution</span></h3>
+          <p class="text-[11px]" style="color:#666">Rear captures while the stream runs. Front briefly switches the camera (the live view blips), then resumes — one camera HAL.</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="grabPhoto('back')" class="btn">📷 Rear</button>
+            <button onclick="grabPhoto('front')" class="btn">📷 Front</button>
+          </div>
+          <span id="grab-meta" class="block text-[11px] font-mono" style="color:#666"></span>
+        </div>
+
+      </div>
+
     </div>
-
-    <!-- full-resolution photos -->
-    <div class="card p-4">
-      <h3 class="sec-title mb-1">Photos <span class="normal-case text-[11px]" style="color:#666">· full resolution</span></h3>
-      <p class="text-[11px] mb-3" style="color:#666">Rear photo captures while the stream keeps running. Front photo briefly switches the camera (the live view blips), then resumes — one camera HAL.</p>
-      <div class="flex gap-2 flex-wrap">
-        <button onclick="grabPhoto('back')" class="btn">📷 Rear photo</button>
-        <button onclick="grabPhoto('front')" class="btn">📷 Front photo</button>
-        <span id="grab-meta" class="text-[11px] self-center font-mono" style="color:#666"></span>
-      </div>
-      <div id="grab-box" class="hidden mt-3">
-        <div class="flex items-center justify-between mb-1">
-          <span class="dh" id="grab-title">snapshot</span>
-          <span class="flex gap-3 text-xs"><a id="grab-dl" download="snapshot.jpg" href="#" style="color:var(--accent)">download</a>
-            <button onclick="$('#grab-box').classList.add('hidden')" style="color:#666">close</button></span>
-        </div>
-        <img id="grab-img" class="w-full rounded-lg bg-black" style="max-height:50vh;object-fit:contain" alt="photo">
-      </div>
-    </div>
-
-    <!-- controls -->
-    <div class="card p-4">
-      <h3 class="sec-title mb-3">Controls</h3>
-      <div class="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-        <div>
-          <div class="flex justify-between text-[11px]" style="color:#666"><span>Exposure (EV)</span><span id="lv-exp-val">0</span></div>
-          <input id="lv-exp" type="range" min="-12" max="12" step="1" value="0" class="w-full"
-                 oninput="$('#lv-exp-val').textContent=(this.value>0?'+':'')+this.value" onchange="vctl('exposure='+this.value)">
-        </div>
-        <div>
-          <div class="flex justify-between text-[11px]" style="color:#666"><span>Zoom</span><span id="lv-zoom-val">1.0×</span></div>
-          <input id="lv-zoom" type="range" min="1" max="8" step="0.1" value="1" class="w-full"
-                 oninput="$('#lv-zoom-val').textContent=(+this.value).toFixed(1)+'×'" onchange="vctl('zoom='+this.value)">
-        </div>
-      </div>
-    </div>
-
   </section>
 
 </div>
@@ -397,19 +408,21 @@ function setRes(){
   vctl("resolution="+v).then(softReset);
 }
 function setApi(){
-  const m=$("#lv-meta"); if(m&&V.on) m.textContent="switching…";
-  vctl("api="+$("#lv-api").value).then(softReset);
-  setTimeout(()=>V.refreshSizes(), 1600);
+  // API swaps the whole backend (Camera1 surface ⇄ CameraX byte-buffer) — soft resync stalls,
+  // so persist the pref then fully reconnect the stream (stop → start picks up the new API).
+  vctl("api="+$("#lv-api").value);
+  if(V.on){ const m=$("#lv-meta"); if(m) m.textContent="switching API…"; V.stop(); setTimeout(V.start,500); }
+  setTimeout(()=>V.refreshSizes(), 1800);
 }
 // resolution list for the selected camera (from /api/video/cameras sizes; needs the app up)
 V.fillRes=function(){
   const sel=$("#lv-res"); if(!sel) return;
+  const keep=sel.value;
   const cam=V.cameras.find(c=>c.facing===$("#lv-cam").value) || V.cameras[0];
   const sizes=(cam&&cam.sizes)||[];
-  if(sizes.length){
-    const def=sizes.filter(s=>s.h<=1080).sort((a,b)=>b.w*b.h-a.w*a.h)[0] || sizes.slice().sort((a,b)=>b.w*b.h-a.w*a.h)[0];
-    sel.innerHTML=sizes.map(s=>`<option value="${s.w}x${s.h}"${s===def?" selected":""}>${s.w}×${s.h}</option>`).join("");
-  } else sel.innerHTML=`<option value="">default</option>`;
+  sel.innerHTML=`<option value="auto">Auto (max)</option>`
+    + sizes.map(s=>`<option value="${s.w}x${s.h}">${s.w}×${s.h}</option>`).join("");
+  sel.value = (keep && [...sel.options].some(o=>o.value===keep)) ? keep : "auto";   // default Auto, keep choice
 };
 // once the app is up (after Start) the size list is real; refetch and fill
 V.refreshSizes=async function(){
